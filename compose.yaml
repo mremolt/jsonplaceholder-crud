@@ -1,0 +1,31 @@
+services:
+  cassandra:
+    image: cassandra:5.0
+    container_name: jsonplaceholder-cassandra
+    ports:
+      - "9042:9042"
+    environment:
+      CASSANDRA_CLUSTER_NAME: jsonplaceholder
+      CASSANDRA_DC: datacenter1
+      CASSANDRA_ENDPOINT_SNITCH: GossipingPropertyFileSnitch
+    volumes:
+      - cassandra-data:/var/lib/cassandra
+    healthcheck:
+      test: ["CMD-SHELL", "cqlsh -e 'SELECT release_version FROM system.local' 127.0.0.1 9042"]
+      interval: 10s
+      timeout: 10s
+      retries: 20
+      start_period: 60s
+
+  cassandra-schema:
+    image: cassandra:5.0
+    depends_on:
+      cassandra:
+        condition: service_healthy
+    volumes:
+      - ./src/main/resources/schema.cql:/schema.cql:ro
+    entrypoint: ["/bin/bash", "-c"]
+    command: ["cqlsh cassandra 9042 -f /schema.cql"]
+
+volumes:
+  cassandra-data:

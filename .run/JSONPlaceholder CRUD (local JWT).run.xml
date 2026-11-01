@@ -1,0 +1,12 @@
+<component name="ProjectRunConfigurationManager">
+    <configuration default="false" name="JSONPlaceholder CRUD (local JWT)" type="Application"
+        factoryName="Application">
+        <option name="MAIN_CLASS_NAME"
+            value="gmbh.tantive.jsonplaceholder_crud.dev.LocalDevelopmentLauncher" />
+        <module name="jsonplaceholder-crud" />
+        <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$" />
+        <method v="2">
+            <option name="Make" enabled="true" />
+        </method>
+    </configuration>
+</component>
