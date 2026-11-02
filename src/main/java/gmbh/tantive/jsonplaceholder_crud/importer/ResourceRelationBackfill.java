@@ -17,8 +17,11 @@ import org.springframework.boot.ApplicationRunner;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
+import lombok.RequiredArgsConstructor;
+
 @Component
 @ConditionalOnProperty(name = "jsonplaceholder.relations.backfill.enabled", havingValue = "true")
+@RequiredArgsConstructor
 public class ResourceRelationBackfill implements ApplicationRunner {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ResourceRelationBackfill.class);
@@ -30,16 +33,6 @@ public class ResourceRelationBackfill implements ApplicationRunner {
     private final PhotoService photoService;
     private final TodoService todoService;
     private final UserService userService;
-
-    public ResourceRelationBackfill(PostService postService, CommentService commentService, AlbumService albumService,
-            PhotoService photoService, TodoService todoService, UserService userService) {
-        this.postService = postService;
-        this.commentService = commentService;
-        this.albumService = albumService;
-        this.photoService = photoService;
-        this.todoService = todoService;
-        this.userService = userService;
-    }
 
     @Override
     public void run(ApplicationArguments args) {

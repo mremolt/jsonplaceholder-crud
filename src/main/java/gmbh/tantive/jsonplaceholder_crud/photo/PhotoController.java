@@ -21,17 +21,16 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+import lombok.RequiredArgsConstructor;
+
 @RestController
 @RequestMapping("/photos")
 @Tag(name = "Photos")
 @SecurityRequirement(name = "bearerAuth")
+@RequiredArgsConstructor
 public class PhotoController {
 
     private final PhotoService photoService;
-
-    public PhotoController(PhotoService photoService) {
-        this.photoService = photoService;
-    }
 
     @GetMapping
     @Operation(summary = "List photos, optionally filtered by album")

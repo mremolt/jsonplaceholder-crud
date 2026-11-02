@@ -11,18 +11,16 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+import lombok.RequiredArgsConstructor;
+
 @RestController
 @RequestMapping("/auth")
 @Tag(name = "Authentication")
+@RequiredArgsConstructor
 public class AuthController {
 
     private final AuthService authService;
     private final AuthRateLimiter authRateLimiter;
-
-    public AuthController(AuthService authService, AuthRateLimiter authRateLimiter) {
-        this.authService = authService;
-        this.authRateLimiter = authRateLimiter;
-    }
 
     @PostMapping("/register")
     @ResponseStatus(HttpStatus.CREATED)

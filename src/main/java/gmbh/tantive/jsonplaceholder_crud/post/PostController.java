@@ -23,19 +23,17 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+import lombok.RequiredArgsConstructor;
+
 @RestController
 @RequestMapping("/posts")
 @Tag(name = "Posts")
 @SecurityRequirement(name = "bearerAuth")
+@RequiredArgsConstructor
 public class PostController {
 
     private final PostService postService;
     private final CommentService commentService;
-
-    public PostController(PostService postService, CommentService commentService) {
-        this.postService = postService;
-        this.commentService = commentService;
-    }
 
     @GetMapping
     @Operation(summary = "List posts, optionally filtered by user")

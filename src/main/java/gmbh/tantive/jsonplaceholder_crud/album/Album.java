@@ -6,6 +6,11 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 
+import lombok.Getter;
+import lombok.Setter;
+
+@Getter
+@Setter
 public class Album extends ResourceModel {
 
     @NotNull
@@ -13,20 +18,4 @@ public class Album extends ResourceModel {
     private Long userId;
     @NotBlank
     private String title;
-
-    public Long getUserId() {
-        return userId;
-    }
-
-    public void setUserId(Long userId) {
-        this.userId = userId;
-    }
-
-    public String getTitle() {
-        return title;
-    }
-
-    public void setTitle(String title) {
-        this.title = title;
-    }
 }

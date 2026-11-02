@@ -27,24 +27,19 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+import lombok.RequiredArgsConstructor;
+
 @RestController
 @RequestMapping("/users")
 @Tag(name = "Users")
 @SecurityRequirement(name = "bearerAuth")
+@RequiredArgsConstructor
 public class UserController {
 
     private final UserService userService;
     private final PostService postService;
     private final AlbumService albumService;
     private final TodoService todoService;
-
-    public UserController(UserService userService, PostService postService, AlbumService albumService,
-            TodoService todoService) {
-        this.userService = userService;
-        this.postService = postService;
-        this.albumService = albumService;
-        this.todoService = todoService;
-    }
 
     @GetMapping
     @Operation(summary = "List users, optionally filtered by ID")

@@ -6,16 +6,14 @@ import org.springframework.data.cassandra.core.CassandraTemplate;
 import org.springframework.data.cassandra.core.InsertOptions;
 import org.springframework.stereotype.Repository;
 
+import lombok.RequiredArgsConstructor;
+
 @Repository
+@RequiredArgsConstructor
 public class CassandraAuthAccountStore implements AuthAccountStore {
 
     private final AuthAccountRepository repository;
     private final CassandraTemplate cassandraTemplate;
-
-    public CassandraAuthAccountStore(AuthAccountRepository repository, CassandraTemplate cassandraTemplate) {
-        this.repository = repository;
-        this.cassandraTemplate = cassandraTemplate;
-    }
 
     @Override
     public Optional<AuthAccount> findByEmail(String normalizedEmail) {

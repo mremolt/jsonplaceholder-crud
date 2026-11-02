@@ -6,14 +6,13 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 
+import lombok.RequiredArgsConstructor;
+
 @Service
+@RequiredArgsConstructor
 public class CassandraUserDetailsService implements UserDetailsService {
 
     private final AuthAccountStore accountStore;
-
-    public CassandraUserDetailsService(AuthAccountStore accountStore) {
-        this.accountStore = accountStore;
-    }
 
     @Override
     public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {

@@ -23,19 +23,17 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+import lombok.RequiredArgsConstructor;
+
 @RestController
 @RequestMapping("/albums")
 @Tag(name = "Albums")
 @SecurityRequirement(name = "bearerAuth")
+@RequiredArgsConstructor
 public class AlbumController {
 
     private final AlbumService albumService;
     private final PhotoService photoService;
-
-    public AlbumController(AlbumService albumService, PhotoService photoService) {
-        this.albumService = albumService;
-        this.photoService = photoService;
-    }
 
     @GetMapping
     @Operation(summary = "List albums, optionally filtered by user")

@@ -12,7 +12,10 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
+import lombok.RequiredArgsConstructor;
+
 @Service
+@RequiredArgsConstructor
 public class AuthService {
 
     private static final String DEFAULT_ROLE = "ROLE_USER";
@@ -22,14 +25,6 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final AuthenticationManager authenticationManager;
     private final JwtTokenService jwtTokenService;
-
-    public AuthService(AuthAccountStore accountStore, PasswordEncoder passwordEncoder,
-            AuthenticationManager authenticationManager, JwtTokenService jwtTokenService) {
-        this.accountStore = accountStore;
-        this.passwordEncoder = passwordEncoder;
-        this.authenticationManager = authenticationManager;
-        this.jwtTokenService = jwtTokenService;
-    }
 
     public AuthAccountResponse register(RegisterRequest request) {
         String email = AuthEmail.normalize(request.email());
