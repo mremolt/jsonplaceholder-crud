@@ -1,7 +1,9 @@
 package gmbh.tantive.jsonplaceholder_crud.post;
 
+import static org.hamcrest.Matchers.startsWith;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
@@ -18,34 +20,29 @@ import java.util.List;
 import gmbh.tantive.jsonplaceholder_crud.comment.Comment;
 import gmbh.tantive.jsonplaceholder_crud.comment.CommentService;
 import gmbh.tantive.jsonplaceholder_crud.shared.CollectionPage;
+import gmbh.tantive.jsonplaceholder_crud.shared.ResourceNotFoundException;
+import gmbh.tantive.jsonplaceholder_crud.support.ApiWebMvcTest;
 import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.mockito.ArgumentCaptor;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
-import org.springframework.http.HttpStatus;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.setup.MockMvcBuilders;
-import org.springframework.web.server.ResponseStatusException;
 
-@ExtendWith(MockitoExtension.class)
+@ApiWebMvcTest(PostController.class)
 class PostControllerTest {
 
-    @Mock
+    @MockitoBean
     private PostService postService;
 
-    @Mock
+    @MockitoBean
     private CommentService commentService;
 
+    @Autowired
     private MockMvc mockMvc;
-
-    @BeforeEach
-    void setUp() {
-        mockMvc = MockMvcBuilders.standaloneSetup(new PostController(postService, commentService)).build();
-    }
 
     @Test
     void listsPostsByUser() throws Exception {
@@ -62,7 +59,8 @@ class PostControllerTest {
     @Test
     void rejectsOutOfRangePagination() throws Exception {
         mockMvc.perform(get("/posts?_start=-1"))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.detail").value("_start must be between 0 and 10000"));
     }
 
     @Test
@@ -78,10 +76,11 @@ class PostControllerTest {
 
     @Test
     void returnsNotFoundForUnknownPost() throws Exception {
-        when(postService.findById(99L)).thenThrow(new ResponseStatusException(HttpStatus.NOT_FOUND));
+        when(postService.findById(99L)).thenThrow(new ResourceNotFoundException("posts", 99L));
 
         mockMvc.perform(get("/posts/99"))
-                .andExpect(status().isNotFound());
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.detail").value("No posts entry with id 99"));
     }
 
     @Test
@@ -118,16 +117,55 @@ class PostControllerTest {
     }
 
     @Test
-    void patchesPostWithOnlyChangedFields() throws Exception {
-        when(postService.update(eq(1L), any())).thenReturn(samplePost(1L));
+    void patchesOnlyTheGivenFieldsWithAMergePatch() throws Exception {
+        when(postService.findById(1L)).thenReturn(samplePost(1L));
+        when(postService.replace(eq(1L), any())).thenAnswer(invocation -> {
+            Post replaced = invocation.getArgument(1);
+            replaced.setId(1L);
+            return replaced;
+        });
 
-        mockMvc.perform(patch("/posts/1").contentType(MediaType.APPLICATION_JSON)
+        mockMvc.perform(patch("/posts/1").contentType("application/merge-patch+json")
                 .content("{\"title\":\"Updated\"}"))
-                .andExpect(status().isOk());
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.title").value("Updated"))
+                .andExpect(jsonPath("$.body").value("Body"));
 
-        ArgumentCaptor<Post> changesCaptor = ArgumentCaptor.forClass(Post.class);
-        verify(postService).update(eq(1L), changesCaptor.capture());
-        Assertions.assertEquals("Updated", changesCaptor.getValue().getTitle());
+        ArgumentCaptor<Post> replaced = ArgumentCaptor.forClass(Post.class);
+        verify(postService).replace(eq(1L), replaced.capture());
+        Assertions.assertEquals("Updated", replaced.getValue().getTitle());
+        Assertions.assertEquals("Body", replaced.getValue().getBody());
+        Assertions.assertEquals(7L, replaced.getValue().getUserId());
+    }
+
+    @ParameterizedTest
+    @CsvSource(delimiter = '|', value = {
+            "{\"title\":\" \"}  | title",
+            "{\"body\":null}     | body",
+            "{\"userId\":-1}     | userId" })
+    void rejectsAPatchWhoseResultIsInvalid(String patch, String field) throws Exception {
+        when(postService.findById(1L)).thenReturn(samplePost(1L));
+
+        mockMvc.perform(patch("/posts/1").contentType("application/merge-patch+json").content(patch))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors[0].field").value(field))
+                .andExpect(jsonPath("$.errors[0].message").isNotEmpty());
+
+        verify(postService, never()).replace(eq(1L), any());
+    }
+
+    @Test
+    void rejectsUnreadablePatches() throws Exception {
+        when(postService.findById(1L)).thenReturn(samplePost(1L));
+
+        mockMvc.perform(patch("/posts/1").contentType("application/merge-patch+json")
+                .content("{\"userId\":\"seven\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.detail").value(startsWith(
+                        "The patched resource is not readable")));
+        mockMvc.perform(patch("/posts/1").contentType(MediaType.TEXT_PLAIN).content("title=x"))
+                .andExpect(status().isUnsupportedMediaType());
+        verify(postService, never()).replace(eq(1L), any());
     }
 
     @Test

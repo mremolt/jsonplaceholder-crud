@@ -12,29 +12,23 @@ import gmbh.tantive.jsonplaceholder_crud.photo.Photo;
 import gmbh.tantive.jsonplaceholder_crud.photo.PhotoService;
 import gmbh.tantive.jsonplaceholder_crud.shared.CollectionPage;
 import gmbh.tantive.jsonplaceholder_crud.support.CrudControllerTestSupport;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
+import gmbh.tantive.jsonplaceholder_crud.support.ApiWebMvcTest;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
-@ExtendWith(MockitoExtension.class)
+@ApiWebMvcTest(AlbumController.class)
 class AlbumControllerTest {
 
-    @Mock
+    @MockitoBean
     private AlbumService albumService;
 
-    @Mock
+    @MockitoBean
     private PhotoService photoService;
 
+    @Autowired
     private MockMvc mockMvc;
-
-    @BeforeEach
-    void setUp() {
-        mockMvc = MockMvcBuilders.standaloneSetup(new AlbumController(albumService, photoService)).build();
-    }
 
     @Test
     void supportsAlbumCrudRoutes() throws Exception {

@@ -17,16 +17,14 @@ import gmbh.tantive.jsonplaceholder_crud.support.CrudControllerTestSupport;
 import gmbh.tantive.jsonplaceholder_crud.shared.CollectionPage;
 import gmbh.tantive.jsonplaceholder_crud.todo.Todo;
 import gmbh.tantive.jsonplaceholder_crud.todo.TodoService;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
+import gmbh.tantive.jsonplaceholder_crud.support.ApiWebMvcTest;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
-@ExtendWith(MockitoExtension.class)
+@ApiWebMvcTest(UserController.class)
 class UserControllerTest {
 
     private static final String VALID_USER_JSON = "{\"name\":\"Name\",\"username\":\"user\","
@@ -36,25 +34,20 @@ class UserControllerTest {
             + "\"website\":\"example.test\",\"company\":{\"name\":\"Company\","
             + "\"catchPhrase\":\"Phrase\",\"bs\":\"b\"}}";
 
-    @Mock
+    @MockitoBean
     private UserService userService;
 
-    @Mock
+    @MockitoBean
     private PostService postService;
 
-    @Mock
+    @MockitoBean
     private AlbumService albumService;
 
-    @Mock
+    @MockitoBean
     private TodoService todoService;
 
+    @Autowired
     private MockMvc mockMvc;
-
-    @BeforeEach
-    void setUp() {
-        mockMvc = MockMvcBuilders.standaloneSetup(
-                new UserController(userService, postService, albumService, todoService)).build();
-    }
 
     @Test
     void supportsUserCrudRoutes() throws Exception {
@@ -106,11 +99,6 @@ class UserControllerTest {
     }
 
     private User user(Long id) {
-        User user = new User();
-        user.setId(id);
-        user.setName("Leanne Graham");
-        user.setUsername("Bret");
-        user.setEmail("Sincere@april.biz");
-        return user;
+        return UserFixtures.leanne(id);
     }
 }

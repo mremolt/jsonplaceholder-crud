@@ -10,26 +10,20 @@ import java.util.List;
 
 import gmbh.tantive.jsonplaceholder_crud.support.CrudControllerTestSupport;
 import gmbh.tantive.jsonplaceholder_crud.shared.CollectionPage;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
+import gmbh.tantive.jsonplaceholder_crud.support.ApiWebMvcTest;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
-@ExtendWith(MockitoExtension.class)
+@ApiWebMvcTest(PhotoController.class)
 class PhotoControllerTest {
 
-    @Mock
+    @MockitoBean
     private PhotoService photoService;
 
+    @Autowired
     private MockMvc mockMvc;
-
-    @BeforeEach
-    void setUp() {
-        mockMvc = MockMvcBuilders.standaloneSetup(new PhotoController(photoService)).build();
-    }
 
     @Test
     void supportsPhotoCrudRoutes() throws Exception {

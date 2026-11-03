@@ -5,19 +5,20 @@ CREATE TABLE IF NOT EXISTS jsonplaceholder.resources (
 	resource text,
 	id bigint,
 	payload text,
-	user_id bigint,
-	post_id bigint,
-	album_id bigint,
-	completed boolean,
 	PRIMARY KEY (resource, id)
 );
 
-ALTER TABLE jsonplaceholder.resources ADD IF NOT EXISTS completed boolean;
-
+-- Migration for existing keyspaces: the former filter columns and their indexes are no longer read or
+-- written. Their values are fully contained in payload, so dropping them needs no backfill. Relation
+-- queries use resource_relations, which ResourceRelationBackfill can rebuild from payload at any time.
 DROP INDEX IF EXISTS jsonplaceholder.resources_user_id_sai;
 DROP INDEX IF EXISTS jsonplaceholder.resources_post_id_sai;
 DROP INDEX IF EXISTS jsonplaceholder.resources_album_id_sai;
 DROP INDEX IF EXISTS jsonplaceholder.resources_completed_sai;
+ALTER TABLE jsonplaceholder.resources DROP IF EXISTS user_id;
+ALTER TABLE jsonplaceholder.resources DROP IF EXISTS post_id;
+ALTER TABLE jsonplaceholder.resources DROP IF EXISTS album_id;
+ALTER TABLE jsonplaceholder.resources DROP IF EXISTS completed;
 
 CREATE TABLE IF NOT EXISTS jsonplaceholder.resource_relations (
 	relationship text,

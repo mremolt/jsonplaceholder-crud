@@ -9,17 +9,14 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.Base64;
 import java.util.List;
 import java.util.UUID;
 
+import gmbh.tantive.jsonplaceholder_crud.support.IntegrationTest;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
@@ -27,30 +24,15 @@ import org.springframework.security.oauth2.jwt.JwsHeader;
 import org.springframework.security.oauth2.jwt.JwtClaimsSet;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
 import org.springframework.security.oauth2.jwt.JwtEncoderParameters;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
-import org.testcontainers.cassandra.CassandraContainer;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
 
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
-@Testcontainers(disabledWithoutDocker = true)
-@SpringBootTest
-@AutoConfigureMockMvc
+@IntegrationTest
 class AuthIntegrationTest {
-
-    private static final String TEST_JWT_SECRET = Base64.getEncoder()
-            .encodeToString("test-only-signing-key-with-32-bytes".getBytes(StandardCharsets.UTF_8));
-
-    @Container
-    @SuppressWarnings("resource")
-    private static final CassandraContainer CASSANDRA = new CassandraContainer("cassandra:5.0")
-            .withInitScript("schema.cql");
 
     @Autowired
     private MockMvc mockMvc;
@@ -67,16 +49,24 @@ class AuthIntegrationTest {
     @Autowired
     private JwtEncoder jwtEncoder;
 
-    @DynamicPropertySource
-    static void cassandraProperties(DynamicPropertyRegistry registry) {
-        registry.add("spring.cassandra.contact-points", CASSANDRA::getHost);
-        registry.add("spring.cassandra.port", CASSANDRA::getFirstMappedPort);
-        registry.add("spring.cassandra.local-datacenter", CASSANDRA::getLocalDatacenter);
-        registry.add("spring.cassandra.keyspace-name", () -> "jsonplaceholder");
-        registry.add("spring.cassandra.schema-action", () -> "create_if_not_exists");
-        registry.add("security.jwt.secret", () -> TEST_JWT_SECRET);
-        registry.add("jsonplaceholder.import.enabled", () -> false);
-        registry.add("jsonplaceholder.relations.backfill.enabled", () -> false);
+    @Test
+    void doesNotHideServerErrorsBehindAuthentication() throws Exception {
+        mockMvc.perform(get("/error"))
+                .andExpect(status().isInternalServerError());
+    }
+
+    @Test
+    void documentsInheritedCrudOperationsWithConcreteResourceSchemas() throws Exception {
+        mockMvc.perform(get("/v3/api-docs"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.paths['/posts/{id}'].get.responses['200'].content['*/*'].schema['$ref']")
+                        .value("#/components/schemas/PostResponse"))
+                .andExpect(jsonPath("$.paths['/users/{id}'].put.requestBody.content['application/json'].schema['$ref']")
+                        .value("#/components/schemas/UserRequest"))
+                .andExpect(jsonPath("$.paths['/users/{id}'].patch.requestBody.content['application/merge-patch+json']")
+                        .exists())
+                .andExpect(jsonPath("$.paths['/todos'].post.requestBody.content['application/json'].schema['$ref']")
+                        .value("#/components/schemas/TodoRequest"));
     }
 
     @Test

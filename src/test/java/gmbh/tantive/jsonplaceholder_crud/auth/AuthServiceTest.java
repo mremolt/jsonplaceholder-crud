@@ -18,6 +18,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.authentication.InternalAuthenticationServiceException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.server.ResponseStatusException;
@@ -102,6 +103,17 @@ class AuthServiceTest {
                 () -> service().login(new LoginRequest("missing@example.com", "wrong-password")));
 
         assertEquals(HttpStatus.UNAUTHORIZED, exception.getStatusCode());
+    }
+
+    @Test
+    void reportsUnavailableAuthenticationInsteadOfInvalidCredentials() {
+        when(authenticationManager.authenticate(any(Authentication.class)))
+                .thenThrow(new InternalAuthenticationServiceException("Cassandra unreachable"));
+
+        ResponseStatusException exception = assertThrows(ResponseStatusException.class,
+                () -> service().login(new LoginRequest("alice@example.com", "Correct-horse-battery-42")));
+
+        assertEquals(HttpStatus.SERVICE_UNAVAILABLE, exception.getStatusCode());
     }
 
     private AuthService service() {

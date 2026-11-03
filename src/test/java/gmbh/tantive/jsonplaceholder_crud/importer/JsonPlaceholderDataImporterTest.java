@@ -1,30 +1,31 @@
 package gmbh.tantive.jsonplaceholder_crud.importer;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.io.IOException;
+import java.net.URI;
+import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Stream;
 
-import gmbh.tantive.jsonplaceholder_crud.album.AlbumService;
-import gmbh.tantive.jsonplaceholder_crud.comment.CommentService;
-import gmbh.tantive.jsonplaceholder_crud.photo.PhotoService;
-import gmbh.tantive.jsonplaceholder_crud.post.PostService;
-import gmbh.tantive.jsonplaceholder_crud.todo.TodoService;
-import gmbh.tantive.jsonplaceholder_crud.user.UserService;
+import gmbh.tantive.jsonplaceholder_crud.post.Post;
+import gmbh.tantive.jsonplaceholder_crud.shared.ResourceBulkService;
+import gmbh.tantive.jsonplaceholder_crud.support.RecordingBulkService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.ArgumentMatchers;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -38,23 +39,8 @@ class JsonPlaceholderDataImporterTest {
     @Mock
     private HttpClient httpClient;
 
-    @Mock
-    private PostService postService;
-
-    @Mock
-    private CommentService commentService;
-
-    @Mock
-    private AlbumService albumService;
-
-    @Mock
-    private PhotoService photoService;
-
-    @Mock
-    private TodoService todoService;
-
-    @Mock
-    private UserService userService;
+    private final List<RecordingBulkService> resources = Stream.of("posts", "comments", "albums", "photos",
+            "todos", "users").map(RecordingBulkService::new).toList();
 
     @Test
     void retriesServerErrorsAndImportsAllCollections() throws Exception {
@@ -67,14 +53,31 @@ class JsonPlaceholderDataImporterTest {
 
         importer().run(new DefaultApplicationArguments());
 
-        verify(httpClient, times(7)).send(any(HttpRequest.class),
+        ArgumentCaptor<HttpRequest> requests = ArgumentCaptor.forClass(HttpRequest.class);
+        verify(httpClient, times(7)).send(requests.capture(),
                 ArgumentMatchers.<HttpResponse.BodyHandler<String>>any());
-        verify(postService).importAll(List.of());
-        verify(commentService).importAll(List.of());
-        verify(albumService).importAll(List.of());
-        verify(photoService).importAll(List.of());
-        verify(todoService).importAll(List.of());
-        verify(userService).importAll(List.of());
+        assertThat(requests.getAllValues().stream().map(HttpRequest::uri).distinct().toList()).containsExactly(
+                URI.create("https://example.test/posts"), URI.create("https://example.test/comments"),
+                URI.create("https://example.test/albums"), URI.create("https://example.test/photos"),
+                URI.create("https://example.test/todos"), URI.create("https://example.test/users"));
+        assertThat(resources).allSatisfy(resource -> assertThat(resource.imports()).containsExactly(List.of()));
+    }
+
+    @Test
+    void importsTheParsedRecordsIntoTheMatchingResource() throws Exception {
+        HttpResponse<String> posts = response(200, "[{\"id\":3,\"userId\":1,\"title\":\"T\",\"body\":\"B\"}]");
+        HttpResponse<String> empty = response(200, "[]");
+        Iterator<HttpResponse<String>> responses = List.of(posts, empty, empty, empty, empty, empty).iterator();
+        when(httpClient.send(any(HttpRequest.class), ArgumentMatchers.<HttpResponse.BodyHandler<String>>any()))
+                .thenAnswer(invocation -> responses.next());
+
+        importer().run(new DefaultApplicationArguments());
+
+        assertThat(resources.getFirst().imports()).singleElement().satisfies(batch ->
+                assertThat(batch).singleElement().satisfies(post -> {
+                    assertThat(post.getId()).isEqualTo(3L);
+                    assertThat(post.getTitle()).isEqualTo("T");
+                }));
     }
 
     @Test
@@ -87,7 +90,7 @@ class JsonPlaceholderDataImporterTest {
 
         verify(httpClient).send(any(HttpRequest.class),
                 ArgumentMatchers.<HttpResponse.BodyHandler<String>>any());
-        verifyNoInteractions(postService, commentService, albumService, photoService, todoService, userService);
+        assertThat(resources).allSatisfy(resource -> assertThat(resource.imports()).isEmpty());
     }
 
     @Test
@@ -100,7 +103,7 @@ class JsonPlaceholderDataImporterTest {
 
         verify(httpClient, times(3)).send(any(HttpRequest.class),
                 ArgumentMatchers.<HttpResponse.BodyHandler<String>>any());
-        verifyNoInteractions(postService, commentService, albumService, photoService, todoService, userService);
+        assertThat(resources).allSatisfy(resource -> assertThat(resource.imports()).isEmpty());
     }
 
     @Test
@@ -119,6 +122,7 @@ class JsonPlaceholderDataImporterTest {
 
         verify(httpClient, times(7)).send(any(HttpRequest.class),
                 ArgumentMatchers.<HttpResponse.BodyHandler<String>>any());
+        assertThat(resources).allSatisfy(resource -> assertThat(resource.imports()).hasSize(1));
     }
 
     @Test
@@ -133,12 +137,12 @@ class JsonPlaceholderDataImporterTest {
         } finally {
             Thread.interrupted();
         }
-        verifyNoInteractions(postService, commentService, albumService, photoService, todoService, userService);
+        assertThat(resources).allSatisfy(resource -> assertThat(resource.imports()).isEmpty());
     }
 
     private JsonPlaceholderDataImporter importer() {
-        return new JsonPlaceholderDataImporter(httpClient, postService, commentService, albumService, photoService,
-                todoService, userService, JsonMapper.builder().build(), "https://example.test/");
+        return new JsonPlaceholderDataImporter(httpClient, new ArrayList<ResourceBulkService<?>>(resources),
+                JsonMapper.builder().build(), "https://example.test/");
     }
 
     @SuppressWarnings("unchecked")

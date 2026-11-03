@@ -1,84 +1,42 @@
 package gmbh.tantive.jsonplaceholder_crud.importer;
 
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.List;
 import java.util.stream.LongStream;
 
-import gmbh.tantive.jsonplaceholder_crud.album.AlbumService;
-import gmbh.tantive.jsonplaceholder_crud.comment.CommentService;
-import gmbh.tantive.jsonplaceholder_crud.photo.PhotoService;
 import gmbh.tantive.jsonplaceholder_crud.post.Post;
-import gmbh.tantive.jsonplaceholder_crud.post.PostService;
-import gmbh.tantive.jsonplaceholder_crud.todo.TodoService;
-import gmbh.tantive.jsonplaceholder_crud.user.UserService;
+import gmbh.tantive.jsonplaceholder_crud.shared.ResourceBulkService;
+import gmbh.tantive.jsonplaceholder_crud.support.RecordingBulkService;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.boot.DefaultApplicationArguments;
 
-@ExtendWith(MockitoExtension.class)
 class ResourceRelationBackfillTest {
 
-    @Mock
-    private PostService postService;
-
-    @Mock
-    private CommentService commentService;
-
-    @Mock
-    private AlbumService albumService;
-
-    @Mock
-    private PhotoService photoService;
-
-    @Mock
-    private TodoService todoService;
-
-    @Mock
-    private UserService userService;
-
     @Test
-    void backfillsExistingPostsUsingAnIdCursor() {
-        Post post = new Post();
-        post.setId(42L);
-        when(postService.findAfterId(0L, 500)).thenReturn(List.of(post));
-        ResourceRelationBackfill backfill = new ResourceRelationBackfill(postService, commentService, albumService,
-                photoService, todoService, userService);
+    void reimportsEveryStoredResourceToRebuildItsRelations() {
+        RecordingBulkService posts = new RecordingBulkService("posts", List.of(post(42L)));
+        RecordingBulkService users = new RecordingBulkService("users");
 
-        backfill.run(new DefaultApplicationArguments());
+        new ResourceRelationBackfill(List.<ResourceBulkService<?>>of(posts, users)).run(new DefaultApplicationArguments());
 
-        verify(postService).importAll(List.of(post));
-        verify(postService).findAfterId(0L, 500);
-        verify(commentService).findAfterId(0L, 500);
-        verify(albumService).findAfterId(0L, 500);
-        verify(photoService).findAfterId(0L, 500);
-        verify(todoService).findAfterId(0L, 500);
-        verify(userService).findAfterId(0L, 500);
+        assertThat(posts.imports()).singleElement()
+                .satisfies(batch -> assertThat(batch).extracting(Post::getId).containsExactly(42L));
+        assertThat(users.imports()).isEmpty();
     }
 
     @Test
     void advancesTheIdCursorAcrossFullBatches() {
-        List<Post> firstBatch = LongStream.rangeClosed(1L, 500L)
-                .mapToObj(id -> post(id))
-                .toList();
-        Post finalPost = post(501L);
-        when(postService.findAfterId(0L, 500)).thenReturn(firstBatch);
-        when(postService.findAfterId(500L, 500)).thenReturn(List.of(finalPost));
-        ResourceRelationBackfill backfill = new ResourceRelationBackfill(postService, commentService, albumService,
-                photoService, todoService, userService);
+        List<Post> stored = LongStream.rangeClosed(1L, 501L).mapToObj(ResourceRelationBackfillTest::post).toList();
+        RecordingBulkService posts = new RecordingBulkService("posts", stored);
 
-        backfill.run(new DefaultApplicationArguments());
+        new ResourceRelationBackfill(List.<ResourceBulkService<?>>of(posts)).run(new DefaultApplicationArguments());
 
-        verify(postService).importAll(firstBatch);
-        verify(postService).importAll(List.of(finalPost));
-        verify(postService).findAfterId(0L, 500);
-        verify(postService).findAfterId(500L, 500);
+        assertThat(posts.imports()).extracting(List::size).containsExactly(500, 1);
+        assertThat(posts.imports().getLast()).extracting(Post::getId).containsExactly(501L);
     }
 
-    private Post post(Long id) {
+    private static Post post(long id) {
         Post post = new Post();
         post.setId(id);
         return post;
