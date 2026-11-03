@@ -20,7 +20,6 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
 
-import gmbh.tantive.jsonplaceholder_crud.post.Post;
 import gmbh.tantive.jsonplaceholder_crud.shared.ResourceBulkService;
 import gmbh.tantive.jsonplaceholder_crud.support.RecordingBulkService;
 import org.junit.jupiter.api.Test;

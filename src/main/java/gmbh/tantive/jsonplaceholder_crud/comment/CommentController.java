@@ -1,7 +1,5 @@
 package gmbh.tantive.jsonplaceholder_crud.comment;
 
-import static gmbh.tantive.jsonplaceholder_crud.api.ResourceController.AFTER_DESCRIPTION;
-
 import java.util.List;
 
 import io.swagger.v3.oas.annotations.Operation;
