@@ -1,8 +1,11 @@
 package gmbh.tantive.jsonplaceholder_crud.comment;
 
+import static gmbh.tantive.jsonplaceholder_crud.api.ResourceController.AFTER_DESCRIPTION;
+
 import java.util.List;
 
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import gmbh.tantive.jsonplaceholder_crud.api.JsonMergePatcher;
@@ -30,8 +33,9 @@ public class CommentController extends ResourceController<Comment, CommentReques
     @Operation(summary = "List comments, optionally filtered by post")
     public List<CommentResponse> findAll(@RequestParam(required = false) Long postId,
             @RequestParam(name = "_start", defaultValue = "0") int start,
-            @RequestParam(name = "_limit", defaultValue = "100") int limit) {
-        return commentService.findByPostId(postId, new CollectionPage(start, limit)).stream()
+            @RequestParam(name = "_limit", defaultValue = "100") int limit,
+            @Parameter(description = AFTER_DESCRIPTION) @RequestParam(name = "_after", required = false) Long after) {
+        return commentService.findByPostId(postId, new CollectionPage(start, limit, after)).stream()
                 .map(CommentResponse::from)
                 .toList();
     }

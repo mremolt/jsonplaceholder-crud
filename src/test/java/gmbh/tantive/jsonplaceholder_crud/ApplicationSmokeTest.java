@@ -73,6 +73,14 @@ class ApplicationSmokeTest {
         assertThat(missing.headers().firstValue("Content-Type")).hasValue("application/problem+json");
         assertThat(send("GET", "/posts?_limit=0", null).statusCode()).isEqualTo(400);
 
+        long first = json(send("POST", "/posts", """
+                {"userId":71003,"title":"First","body":"Body"}""")).get("id").asLong();
+        long second = json(send("POST", "/posts", """
+                {"userId":71003,"title":"Second","body":"Body"}""")).get("id").asLong();
+        assertThat(ids(send("GET", "/posts?userId=71003&_limit=1", null))).containsExactly(first);
+        assertThat(ids(send("GET", "/posts?userId=71003&_limit=1&_after=" + first, null))).containsExactly(second);
+        assertThat(ids(send("GET", "/posts?userId=71003&_limit=1&_after=" + second, null))).isEmpty();
+
         HttpResponse<String> index = send("GET", "/", null);
         assertThat(objectMapper.readValue(index.body(), String[].class))
                 .containsExactly("posts", "comments", "albums", "photos", "todos", "users");

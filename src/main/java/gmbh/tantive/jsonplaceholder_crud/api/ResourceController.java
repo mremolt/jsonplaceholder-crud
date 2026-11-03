@@ -25,6 +25,9 @@ import tools.jackson.databind.JsonNode;
  */
 public abstract class ResourceController<M extends ResourceModel, Q, R> {
 
+    public static final String AFTER_DESCRIPTION = "Keyset cursor: only entries with a greater id. Pass the last id "
+            + "of the previous page; cheaper than _start for long lists and cannot be combined with it.";
+
     private final ResourceCrudService<M> service;
     private final Class<Q> requestType;
     private final JsonMergePatcher patcher;

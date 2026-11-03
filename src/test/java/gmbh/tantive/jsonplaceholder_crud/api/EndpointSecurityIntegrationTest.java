@@ -28,7 +28,8 @@ import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandl
 @IntegrationTest
 class EndpointSecurityIntegrationTest {
 
-    private static final Set<String> PUBLIC_ENDPOINTS = Set.of("POST /auth/register", "POST /auth/login");
+    private static final Set<String> PUBLIC_ENDPOINTS = Set.of("POST /auth/register", "POST /auth/login",
+            "POST /auth/refresh", "POST /auth/logout");
     private static final List<String> PUBLIC_PATH_PREFIXES = List.of("/error", "/v3/api-docs", "/swagger-ui");
 
     @Autowired

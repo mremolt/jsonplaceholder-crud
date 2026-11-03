@@ -4,8 +4,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import org.junit.jupiter.api.Test;
-import org.springframework.http.HttpStatus;
-import org.springframework.web.server.ResponseStatusException;
 
 class AuthRateLimiterTest {
 
@@ -16,10 +14,10 @@ class AuthRateLimiterTest {
             limiter.check("192.0.2.10");
         }
 
-        ResponseStatusException exception = assertThrows(ResponseStatusException.class,
+        AuthRateLimitException exception = assertThrows(AuthRateLimitException.class,
                 () -> limiter.check("192.0.2.10"));
 
-        assertEquals(HttpStatus.TOO_MANY_REQUESTS, exception.getStatusCode());
+        assertEquals(60L, exception.getRetryAfterSeconds());
     }
 
     @Test

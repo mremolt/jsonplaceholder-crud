@@ -44,6 +44,15 @@ public class InMemoryResourceStore implements ResourceStore {
     }
 
     @Override
+    public List<String> findRelatedPayloadsAfterId(Relationship relationship, long parentId, String resource,
+            long afterId, int limit) {
+        return relationPartition(new RelationPartition(relationship, parentId, resource)).tailMap(afterId, false)
+                .values().stream()
+                .limit(limit)
+                .toList();
+    }
+
+    @Override
     public long findHighestId(String resource) {
         NavigableMap<Long, String> partition = partition(resource);
         return partition.isEmpty() ? 0L : partition.lastKey();

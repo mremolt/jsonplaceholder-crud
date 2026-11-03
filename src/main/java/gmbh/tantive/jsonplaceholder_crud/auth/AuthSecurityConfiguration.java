@@ -1,5 +1,6 @@
 package gmbh.tantive.jsonplaceholder_crud.auth;
 
+import java.time.Clock;
 import java.util.Base64;
 import java.util.List;
 import java.util.Arrays;
@@ -48,7 +49,8 @@ public class AuthSecurityConfiguration {
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(authorize -> authorize
-                        .requestMatchers(HttpMethod.POST, "/auth/register", "/auth/login").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/auth/register", "/auth/login", "/auth/refresh",
+                                "/auth/logout").permitAll()
                         // Error dispatches of public endpoints must not be turned into 401 responses.
                         .requestMatchers("/error").permitAll()
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
@@ -78,6 +80,11 @@ public class AuthSecurityConfiguration {
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
         return source;
+    }
+
+    @Bean
+    Clock clock() {
+        return Clock.systemUTC();
     }
 
     @Bean

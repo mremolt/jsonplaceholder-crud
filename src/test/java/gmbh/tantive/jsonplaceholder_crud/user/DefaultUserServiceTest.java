@@ -28,6 +28,9 @@ class DefaultUserServiceTest {
         assertThat(service.findByIdFilter(2L, FIRST_PAGE)).extracting(User::getId).containsExactly(2L);
         assertThat(service.findByIdFilter(9L, FIRST_PAGE)).isEmpty();
         assertThat(service.findByIdFilter(null, FIRST_PAGE)).extracting(User::getId).containsExactly(1L, 2L);
+        assertThat(service.findByIdFilter(2L, new CollectionPage(0, 10, 1L))).extracting(User::getId)
+                .containsExactly(2L);
+        assertThat(service.findByIdFilter(1L, new CollectionPage(0, 10, 1L))).isEmpty();
     }
 
     @Test

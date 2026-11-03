@@ -5,6 +5,8 @@ set -euo pipefail
 
 base_url="${1:-http://localhost:8080}"
 failures=0
+# Like a BFF, send the client address; each run gets its own auth rate-limit bucket.
+client_address="198.18.$((RANDOM % 256)).$((RANDOM % 256))"
 response_file="$(mktemp)"
 trap 'rm -f "$response_file"' EXIT
 
@@ -12,7 +14,7 @@ trap 'rm -f "$response_file"' EXIT
 request() {
     local method="$1" path="$2" body="${3:-}"
     local args=(-s -o "$response_file" -w '%{http_code}' -X "$method" "$base_url$path"
-        -H 'Content-Type: application/json')
+        -H 'Content-Type: application/json' -H "X-Forwarded-For: $client_address")
     [[ -n "${token:-}" ]] && args+=(-H "Authorization: Bearer $token")
     [[ -n "$body" ]] && args+=(-d "$body")
     curl "${args[@]}"
@@ -35,6 +37,10 @@ json() {
 }
 
 printf 'Smoke test against %s\n' "$base_url"
+if [[ "$(curl -s -o /dev/null -w '%{http_code}' "$base_url/v3/api-docs")" == "000" ]]; then
+    printf 'Application not reachable at %s; start it with scripts/local-app.sh start\n' "$base_url"
+    exit 1
+fi
 email="smoke-$(date +%s)-$RANDOM@example.com"
 password="Smoke-test-password-42"
 credentials="{\"email\":\"$email\",\"password\":\"$password\"}"
@@ -44,6 +50,13 @@ check "protected endpoint without token" 401 "$(request GET /posts)"
 check "register" 201 "$(request POST /auth/register "$credentials")"
 check "login" 200 "$(request POST /auth/login "$credentials")"
 token="$(json .accessToken)"
+refresh_token="$(json .refreshToken)"
+token=""
+check "refresh rotates tokens" 200 "$(request POST /auth/refresh "{\"refreshToken\":\"$refresh_token\"}")"
+check "reused refresh token rejected" 401 "$(request POST /auth/refresh "{\"refreshToken\":\"$refresh_token\"}")"
+check "login again" 200 "$(request POST /auth/login "$credentials")"
+token="$(json .accessToken)"
+logout_token="$(json .refreshToken)"
 
 user_id=$((900000000 + RANDOM))
 check "create post" 201 "$(request POST /posts "{\"userId\":$user_id,\"title\":\"Smoke\",\"body\":\"Body\"}")"
@@ -65,6 +78,9 @@ check "delete post" 200 "$(request DELETE "/posts/$post_id")"
 check "deleted post not found" 404 "$(request GET "/posts/$post_id")"
 check "invalid paging rejected" 400 "$(request GET '/posts?_limit=0')"
 check "resource index" 200 "$(request GET /)"
+check "keyset paging" 200 "$(request GET '/posts?_limit=1&_after=1')"
+check "logout" 204 "$(request POST /auth/logout "{\"refreshToken\":\"$logout_token\"}")"
+check "refresh after logout rejected" 401 "$(request POST /auth/refresh "{\"refreshToken\":\"$logout_token\"}")"
 
 if (( failures > 0 )); then
     printf 'Smoke test FAILED (%s checks)\n' "$failures"

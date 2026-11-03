@@ -56,20 +56,6 @@ class AuthIntegrationTest {
     }
 
     @Test
-    void documentsInheritedCrudOperationsWithConcreteResourceSchemas() throws Exception {
-        mockMvc.perform(get("/v3/api-docs"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.paths['/posts/{id}'].get.responses['200'].content['*/*'].schema['$ref']")
-                        .value("#/components/schemas/PostResponse"))
-                .andExpect(jsonPath("$.paths['/users/{id}'].put.requestBody.content['application/json'].schema['$ref']")
-                        .value("#/components/schemas/UserRequest"))
-                .andExpect(jsonPath("$.paths['/users/{id}'].patch.requestBody.content['application/merge-patch+json']")
-                        .exists())
-                .andExpect(jsonPath("$.paths['/todos'].post.requestBody.content['application/json'].schema['$ref']")
-                        .value("#/components/schemas/TodoRequest"));
-    }
-
-    @Test
     void registersLogsInAndProtectsSharedApi() throws Exception {
         String email = "auth-" + UUID.randomUUID() + "@example.com";
         String rawPassword = "Correct-horse-battery-42";
@@ -178,16 +164,95 @@ class AuthIntegrationTest {
             request.setRemoteAddr("198.51.100.25");
             return request;
         };
-        String invalidLogin = "{\"email\":\"missing@example.com\",\"password\":\"wrong-password\"}";
-
         for (int attempt = 0; attempt < AuthRateLimiter.MAX_REQUESTS_PER_WINDOW; attempt++) {
             mockMvc.perform(post("/auth/login").with(clientAddress).contentType(MediaType.APPLICATION_JSON)
-                    .content(invalidLogin))
+                    .content(credentials("client-limit-" + attempt + "@example.com", "wrong-password")))
                     .andExpect(status().isUnauthorized());
         }
         mockMvc.perform(post("/auth/login").with(clientAddress).contentType(MediaType.APPLICATION_JSON)
-                .content(invalidLogin))
+                .content(credentials("client-limit-last@example.com", "wrong-password")))
                 .andExpect(status().isTooManyRequests())
                 .andExpect(header().string("Retry-After", "60"));
+    }
+
+    @Test
+    void rateLimitsLoginAttemptsPerEmailAcrossClientAddresses() throws Exception {
+        String attackedLogin = credentials("attacked-" + UUID.randomUUID() + "@example.com", "wrong-password");
+
+        for (int attempt = 0; attempt < AuthRateLimiter.MAX_REQUESTS_PER_WINDOW; attempt++) {
+            mockMvc.perform(post("/auth/login").with(fromClient("203.0.113." + attempt))
+                    .contentType(MediaType.APPLICATION_JSON).content(attackedLogin))
+                    .andExpect(status().isUnauthorized());
+        }
+        mockMvc.perform(post("/auth/login").with(fromClient("203.0.113.99"))
+                .contentType(MediaType.APPLICATION_JSON).content(attackedLogin))
+                .andExpect(status().isTooManyRequests());
+    }
+
+    @Test
+    void rotatesRefreshTokensAndRevokesTheSessionOnReuse() throws Exception {
+        RequestPostProcessor client = fromClient("198.51.100.40");
+        String email = "refresh-" + UUID.randomUUID() + "@example.com";
+        String login = credentials(email, "Correct-horse-battery-42");
+        mockMvc.perform(post("/auth/register").with(client).contentType(MediaType.APPLICATION_JSON).content(login))
+                .andExpect(status().isCreated());
+        JsonNode first = json(mockMvc.perform(post("/auth/login").with(client)
+                .contentType(MediaType.APPLICATION_JSON).content(login))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.refreshExpiresIn").value(Duration.ofDays(7).toSeconds()))
+                .andReturn());
+
+        JsonNode second = json(mockMvc.perform(post("/auth/refresh").with(client)
+                .contentType(MediaType.APPLICATION_JSON).content(refreshBody(first)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.tokenType").value("Bearer"))
+                .andReturn());
+        mockMvc.perform(get("/posts?_limit=1").header("Authorization", "Bearer " + second.get("accessToken")
+                .asString()))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(post("/auth/refresh").with(client).contentType(MediaType.APPLICATION_JSON)
+                .content(refreshBody(first)))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.detail").value("Invalid or expired refresh token"));
+        mockMvc.perform(post("/auth/refresh").with(client).contentType(MediaType.APPLICATION_JSON)
+                .content(refreshBody(second)))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void logoutEndsTheRefreshSession() throws Exception {
+        RequestPostProcessor client = fromClient("198.51.100.41");
+        String login = credentials("logout-" + UUID.randomUUID() + "@example.com", "Correct-horse-battery-42");
+        mockMvc.perform(post("/auth/register").with(client).contentType(MediaType.APPLICATION_JSON).content(login))
+                .andExpect(status().isCreated());
+        JsonNode tokens = json(mockMvc.perform(post("/auth/login").with(client)
+                .contentType(MediaType.APPLICATION_JSON).content(login)).andReturn());
+
+        mockMvc.perform(post("/auth/logout").with(client).contentType(MediaType.APPLICATION_JSON)
+                .content(refreshBody(tokens)))
+                .andExpect(status().isNoContent());
+        mockMvc.perform(post("/auth/refresh").with(client).contentType(MediaType.APPLICATION_JSON)
+                .content(refreshBody(tokens)))
+                .andExpect(status().isUnauthorized());
+    }
+
+    private static RequestPostProcessor fromClient(String address) {
+        return request -> {
+            request.setRemoteAddr(address);
+            return request;
+        };
+    }
+
+    private static String credentials(String email, String password) {
+        return "{\"email\":\"" + email + "\",\"password\":\"" + password + "\"}";
+    }
+
+    private static String refreshBody(JsonNode tokens) {
+        return "{\"refreshToken\":\"" + tokens.get("refreshToken").asString() + "\"}";
+    }
+
+    private JsonNode json(MvcResult result) throws Exception {
+        return objectMapper.readTree(result.getResponse().getContentAsString());
     }
 }

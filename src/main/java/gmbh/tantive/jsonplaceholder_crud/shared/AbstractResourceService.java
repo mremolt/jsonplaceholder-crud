@@ -40,7 +40,9 @@ public abstract class AbstractResourceService<T extends ResourceModel>
 
     @Override
     public List<T> findAll(CollectionPage page) {
-        return page(store.findPayloads(resourceName, page.fetchLimit()), page);
+        List<String> payloads = page.after() == null ? store.findPayloads(resourceName, page.fetchLimit())
+                : store.findPayloadsAfterId(resourceName, page.after(), page.limit());
+        return page(payloads, page);
     }
 
     @Override
@@ -109,7 +111,10 @@ public abstract class AbstractResourceService<T extends ResourceModel>
     }
 
     protected List<T> findRelated(Relationship relationship, long parentId, CollectionPage page) {
-        return page(store.findRelatedPayloads(relationship, parentId, resourceName, page.fetchLimit()), page);
+        List<String> payloads = page.after() == null
+                ? store.findRelatedPayloads(relationship, parentId, resourceName, page.fetchLimit())
+                : store.findRelatedPayloadsAfterId(relationship, parentId, resourceName, page.after(), page.limit());
+        return page(payloads, page);
     }
 
     protected List<ResourceRelationReference> relationReferences(T resource) {
@@ -119,6 +124,9 @@ public abstract class AbstractResourceService<T extends ResourceModel>
     protected List<T> findPageByIdFilter(Long id, CollectionPage page) {
         if (id == null) {
             return findAll(page);
+        }
+        if (page.after() != null && id <= page.after()) {
+            return List.of();
         }
         return store.findPayload(resourceName, id).map(this::deserialize).map(List::of).orElseGet(List::of);
     }

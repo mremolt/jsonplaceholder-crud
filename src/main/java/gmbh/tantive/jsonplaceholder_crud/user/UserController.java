@@ -1,8 +1,11 @@
 package gmbh.tantive.jsonplaceholder_crud.user;
 
+import static gmbh.tantive.jsonplaceholder_crud.api.ResourceController.AFTER_DESCRIPTION;
+
 import java.util.List;
 
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import gmbh.tantive.jsonplaceholder_crud.album.AlbumResponse;
@@ -44,8 +47,9 @@ public class UserController extends ResourceController<User, UserRequest, UserRe
     @Operation(summary = "List users, optionally filtered by ID")
     public List<UserResponse> findAll(@RequestParam(required = false) Long id,
             @RequestParam(name = "_start", defaultValue = "0") int start,
-            @RequestParam(name = "_limit", defaultValue = "100") int limit) {
-        return userService.findByIdFilter(id, new CollectionPage(start, limit)).stream()
+            @RequestParam(name = "_limit", defaultValue = "100") int limit,
+            @Parameter(description = AFTER_DESCRIPTION) @RequestParam(name = "_after", required = false) Long after) {
+        return userService.findByIdFilter(id, new CollectionPage(start, limit, after)).stream()
                 .map(UserResponse::from)
                 .toList();
     }
@@ -54,8 +58,9 @@ public class UserController extends ResourceController<User, UserRequest, UserRe
     @Operation(summary = "List posts for a user")
     public List<PostResponse> posts(@PathVariable long id,
             @RequestParam(name = "_start", defaultValue = "0") int start,
-            @RequestParam(name = "_limit", defaultValue = "100") int limit) {
-        return postService.findByUserId(id, new CollectionPage(start, limit)).stream()
+            @RequestParam(name = "_limit", defaultValue = "100") int limit,
+            @Parameter(description = AFTER_DESCRIPTION) @RequestParam(name = "_after", required = false) Long after) {
+        return postService.findByUserId(id, new CollectionPage(start, limit, after)).stream()
                 .map(PostResponse::from)
                 .toList();
     }
@@ -64,8 +69,9 @@ public class UserController extends ResourceController<User, UserRequest, UserRe
     @Operation(summary = "List albums for a user")
     public List<AlbumResponse> albums(@PathVariable long id,
             @RequestParam(name = "_start", defaultValue = "0") int start,
-            @RequestParam(name = "_limit", defaultValue = "100") int limit) {
-        return albumService.findByUserId(id, new CollectionPage(start, limit)).stream()
+            @RequestParam(name = "_limit", defaultValue = "100") int limit,
+            @Parameter(description = AFTER_DESCRIPTION) @RequestParam(name = "_after", required = false) Long after) {
+        return albumService.findByUserId(id, new CollectionPage(start, limit, after)).stream()
                 .map(AlbumResponse::from)
                 .toList();
     }
@@ -74,8 +80,9 @@ public class UserController extends ResourceController<User, UserRequest, UserRe
     @Operation(summary = "List todos for a user")
     public List<TodoResponse> todos(@PathVariable long id,
             @RequestParam(name = "_start", defaultValue = "0") int start,
-            @RequestParam(name = "_limit", defaultValue = "100") int limit) {
-        return todoService.findByUserIdAndCompleted(id, null, new CollectionPage(start, limit)).stream()
+            @RequestParam(name = "_limit", defaultValue = "100") int limit,
+            @Parameter(description = AFTER_DESCRIPTION) @RequestParam(name = "_after", required = false) Long after) {
+        return todoService.findByUserIdAndCompleted(id, null, new CollectionPage(start, limit, after)).stream()
                 .map(TodoResponse::from)
                 .toList();
     }

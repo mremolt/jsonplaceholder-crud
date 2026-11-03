@@ -35,4 +35,24 @@ class AuthControllerTest {
                 .andExpect(status().isServiceUnavailable())
                 .andExpect(jsonPath("$.detail").value("The database is temporarily unavailable"));
     }
+
+    @Test
+    void reportsInvalidRefreshTokensAsUnauthorizedProblem() throws Exception {
+        when(authService.refresh(any())).thenThrow(new InvalidRefreshTokenException());
+
+        mockMvc.perform(post("/auth/refresh").contentType(MediaType.APPLICATION_JSON)
+                .content("{\"refreshToken\":\"stale\"}"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.detail").value("Invalid or expired refresh token"));
+    }
+
+    @Test
+    void validatesRefreshRequestsAndAnswersLogoutWithoutContent() throws Exception {
+        mockMvc.perform(post("/auth/refresh").contentType(MediaType.APPLICATION_JSON)
+                .content("{\"refreshToken\":\"\"}"))
+                .andExpect(status().isBadRequest());
+        mockMvc.perform(post("/auth/logout").contentType(MediaType.APPLICATION_JSON)
+                .content("{\"refreshToken\":\"token\"}"))
+                .andExpect(status().isNoContent());
+    }
 }

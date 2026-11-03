@@ -19,6 +19,9 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class AuthController {
 
+    private static final String CLIENT_KEY = "client:";
+    private static final String EMAIL_KEY = "email:";
+
     private final AuthService authService;
     private final AuthRateLimiter authRateLimiter;
 
@@ -27,14 +30,36 @@ public class AuthController {
     @Operation(summary = "Register an account")
     public AuthAccountResponse register(@Valid @RequestBody RegisterRequest request,
             HttpServletRequest servletRequest) {
-        authRateLimiter.check(servletRequest.getRemoteAddr());
+        checkClientLimit(servletRequest);
         return authService.register(request);
     }
 
     @PostMapping("/login")
-    @Operation(summary = "Authenticate and receive a bearer access token")
+    @Operation(summary = "Authenticate and receive an access and a refresh token")
     public AuthTokenResponse login(@Valid @RequestBody LoginRequest request, HttpServletRequest servletRequest) {
-        authRateLimiter.check(servletRequest.getRemoteAddr());
+        checkClientLimit(servletRequest);
+        authRateLimiter.check(EMAIL_KEY + AuthEmail.normalize(request.email()));
         return authService.login(request);
+    }
+
+    @PostMapping("/refresh")
+    @Operation(summary = "Exchange a refresh token for new tokens; the refresh token is single use")
+    public AuthTokenResponse refresh(@Valid @RequestBody RefreshTokenRequest request,
+            HttpServletRequest servletRequest) {
+        checkClientLimit(servletRequest);
+        return authService.refresh(request);
+    }
+
+    @PostMapping("/logout")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @Operation(summary = "End the session of a refresh token")
+    public void logout(@Valid @RequestBody RefreshTokenRequest request, HttpServletRequest servletRequest) {
+        checkClientLimit(servletRequest);
+        authService.logout(request);
+    }
+
+    // Behind a trusted proxy (the BFF), Tomcat resolves the browser's address from X-Forwarded-For.
+    private void checkClientLimit(HttpServletRequest servletRequest) {
+        authRateLimiter.check(CLIENT_KEY + servletRequest.getRemoteAddr());
     }
 }

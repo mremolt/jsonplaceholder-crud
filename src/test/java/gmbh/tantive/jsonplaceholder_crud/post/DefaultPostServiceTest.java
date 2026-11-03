@@ -51,6 +51,17 @@ class DefaultPostServiceTest {
     }
 
     @Test
+    void continuesListsAfterTheCursorId() {
+        service.importAll(LongStream.rangeClosed(1, 6).mapToObj(id -> post(id, id % 2 == 0 ? 8L : 7L, "Post " + id))
+                .toList());
+
+        assertThat(ids(service.findAll(new CollectionPage(0, 2, 2L)))).containsExactly(3L, 4L);
+        assertThat(ids(service.findAll(new CollectionPage(0, 2, 6L)))).isEmpty();
+        assertThat(ids(service.findByUserId(7L, new CollectionPage(0, 10, 1L)))).containsExactly(3L, 5L);
+        assertThat(ids(service.findByUserId(null, new CollectionPage(0, 1, 5L)))).containsExactly(6L);
+    }
+
+    @Test
     void readsBackfillPagesWithAnIdCursor() {
         service.importAll(LongStream.rangeClosed(1, 7).mapToObj(id -> post(id, 7L, "Post " + id)).toList());
 

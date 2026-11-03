@@ -1,8 +1,11 @@
 package gmbh.tantive.jsonplaceholder_crud.post;
 
+import static gmbh.tantive.jsonplaceholder_crud.api.ResourceController.AFTER_DESCRIPTION;
+
 import java.util.List;
 
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import gmbh.tantive.jsonplaceholder_crud.api.JsonMergePatcher;
@@ -35,8 +38,9 @@ public class PostController extends ResourceController<Post, PostRequest, PostRe
     @Operation(summary = "List posts, optionally filtered by user")
     public List<PostResponse> findAll(@RequestParam(required = false) Long userId,
             @RequestParam(name = "_start", defaultValue = "0") int start,
-            @RequestParam(name = "_limit", defaultValue = "100") int limit) {
-        return postService.findByUserId(userId, new CollectionPage(start, limit)).stream()
+            @RequestParam(name = "_limit", defaultValue = "100") int limit,
+            @Parameter(description = AFTER_DESCRIPTION) @RequestParam(name = "_after", required = false) Long after) {
+        return postService.findByUserId(userId, new CollectionPage(start, limit, after)).stream()
                 .map(PostResponse::from)
                 .toList();
     }
@@ -45,8 +49,9 @@ public class PostController extends ResourceController<Post, PostRequest, PostRe
     @Operation(summary = "List comments for a post")
     public List<CommentResponse> comments(@PathVariable long id,
             @RequestParam(name = "_start", defaultValue = "0") int start,
-            @RequestParam(name = "_limit", defaultValue = "100") int limit) {
-        return commentService.findByPostId(id, new CollectionPage(start, limit)).stream()
+            @RequestParam(name = "_limit", defaultValue = "100") int limit,
+            @Parameter(description = AFTER_DESCRIPTION) @RequestParam(name = "_after", required = false) Long after) {
+        return commentService.findByPostId(id, new CollectionPage(start, limit, after)).stream()
                 .map(CommentResponse::from)
                 .toList();
     }

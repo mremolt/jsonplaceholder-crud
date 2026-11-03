@@ -70,6 +70,8 @@ class CassandraResourceStoreIntegrationTest {
         assertThat(store.findRelatedPayloads(Relationship.USER, 7L, resource, 2))
                 .containsExactly("{\"id\":1}", "{\"id\":2}");
         assertThat(store.findHighestId(resource)).isEqualTo(5L);
+        assertThat(store.findRelatedPayloadsAfterId(Relationship.USER, 7L, resource, 2L, 2))
+                .containsExactly("{\"id\":3}", "{\"id\":4}");
     }
 
     @Test

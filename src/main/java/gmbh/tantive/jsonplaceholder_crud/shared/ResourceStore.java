@@ -17,6 +17,9 @@ public interface ResourceStore {
 
     List<String> findRelatedPayloads(Relationship relationship, long parentId, String resource, int limit);
 
+    List<String> findRelatedPayloadsAfterId(Relationship relationship, long parentId, String resource, long afterId,
+            int limit);
+
     /** Highest stored id of the resource, or 0 if there is none. */
     long findHighestId(String resource);
 

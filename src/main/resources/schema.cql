@@ -37,3 +37,18 @@ CREATE TABLE IF NOT EXISTS jsonplaceholder.auth_accounts_by_email (
 	enabled boolean,
 	created_at timestamp
 );
+
+-- Refresh tokens: only the SHA-256 hash of a token is stored. Rows are written with a TTL equal to the token
+-- lifetime, so expired tokens and revocations disappear without a cleanup job. New tables, no backfill needed.
+CREATE TABLE IF NOT EXISTS jsonplaceholder.auth_refresh_tokens (
+	token_hash text PRIMARY KEY,
+	family_id uuid,
+	email text,
+	used boolean,
+	expires_at timestamp
+);
+
+CREATE TABLE IF NOT EXISTS jsonplaceholder.auth_revoked_refresh_families (
+	family_id uuid PRIMARY KEY,
+	revoked_at timestamp
+);

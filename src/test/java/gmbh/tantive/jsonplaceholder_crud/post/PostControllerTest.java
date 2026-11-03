@@ -57,6 +57,22 @@ class PostControllerTest {
     }
 
     @Test
+    void passesTheKeysetCursorToTheService() throws Exception {
+        when(postService.findByUserId(7L, new CollectionPage(0, 10, 21L))).thenReturn(List.of(samplePost(22L)));
+
+        mockMvc.perform(get("/posts?userId=7&_after=21&_limit=10"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].id").value(22));
+    }
+
+    @Test
+    void rejectsCombiningOffsetAndCursor() throws Exception {
+        mockMvc.perform(get("/posts?_start=10&_after=21"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.detail").value("_start and _after cannot be combined"));
+    }
+
+    @Test
     void rejectsOutOfRangePagination() throws Exception {
         mockMvc.perform(get("/posts?_start=-1"))
                 .andExpect(status().isBadRequest())

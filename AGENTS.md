@@ -44,10 +44,10 @@ All new and changed code must follow these principles. Reviews check them explic
 - **Open/closed.** Adding a resource must not require edits outside its feature package. Components that work on all resources (importer, backfill, resource index) discover them as `ResourceBulkService` beans (ordered with `@Order`); never add hard-coded resource lists. `persistence` stays generic and never learns resource fields.
 - **Liskov substitution.** Subclasses of `AbstractResourceService` and `ResourceController` only fill in the documented hooks (`relationReferences`, mapping methods) and keep the base contract, e.g. ids are assigned by the base class.
 - **Interface segregation.** Clients depend on the narrowest interface: controllers on the resource service interface (CRUD and queries), bulk jobs on `ResourceBulkService`. Do not add import or maintenance operations to API-facing interfaces.
-- **Dependency inversion.** Business code depends on ports in `shared`, not on Cassandra. New infrastructure gets a port in `shared` and an adapter in its own package.
+- **Dependency inversion.** Business code depends on ports in `shared`, not on Cassandra. New infrastructure gets a port in `shared` and an adapter in its own package. Exception: `auth` keeps its ports (`AuthAccountStore`, `RefreshTokenStore`) and their Cassandra adapters inside the package, because nothing outside `auth` may use them.
 - **Constructor injection only**, with `final` fields; Lombok `@RequiredArgsConstructor` is fine when the constructor only assigns fields.
 - **Separate API and storage models.** The API speaks records (`…Request` without id and with Bean Validation, `…Response` with id); services and storage use the model classes. Never expose a storage model in a controller signature. Renaming a stored model field requires a data migration; renaming a record field is an API change.
-- **Domain exceptions, mapped once.** Services throw domain exceptions (`ResourceNotFoundException`, `InvalidPageException`, …); `ApiExceptionHandler` maps them to `ProblemDetail`. Do not throw `ResponseStatusException` from services or `shared`. (The `auth` package still uses `ResponseStatusException`; migrate it when you touch it.)
+- **Domain exceptions, mapped once.** Services throw domain exceptions (`ResourceNotFoundException`, `InvalidPageException`, …); `ApiExceptionHandler` maps them to `ProblemDetail`. Do not throw `ResponseStatusException` from services or `shared`. The `auth` package maps its own exceptions in `AuthExceptionHandler`.
 - **Typed values over strings.** Relation names live in the `Relationship` enum; add new ones there. Use enums or value objects instead of string concatenation for keys and identifiers.
 - **Lombok for boilerplate only.** `@Getter`/`@Setter` on mutable models, `@RequiredArgsConstructor` for injection. No `@Data` on entities or classes with secrets; prefer records for immutable data.
 
@@ -55,8 +55,16 @@ All new and changed code must follow these principles. Reviews check them explic
 
 - POST and PUT take the complete request record and are validated with `@Valid`.
 - PATCH is a JSON Merge Patch (RFC 7396) via `JsonMergePatcher`: fields missing in the patch stay unchanged, `null` removes a field, nested objects merge; the result is validated like a PUT body. Accept `application/merge-patch+json` and `application/json`.
+- List endpoints page by offset (`_start`, max 10000) or by keyset cursor (`_after` = last id of the previous page); both take `_limit` (default 100, max 500) and cannot be combined. Prefer `_after` for long or complete lists.
+- OpenAPI is the frontend's type source: every `…Response` field is required, and every PATCH body is a generated `…Patch` schema (`OpenApiContractCustomizer`). `OpenApiContractIntegrationTest` enforces both.
 - Errors are `application/problem+json`; validation errors list the fields in `errors`. Database outages return 503, internal errors 500, never 401.
-- All endpoints except `POST /auth/register`, `POST /auth/login`, `/error` and the OpenAPI docs require a bearer token. `EndpointSecurityIntegrationTest` enforces this for every new endpoint automatically.
+- All endpoints except `POST /auth/register`, `/auth/login`, `/auth/refresh`, `/auth/logout`, `/error` and the OpenAPI docs require a bearer token. `EndpointSecurityIntegrationTest` enforces this for every new endpoint automatically.
+
+## Authentication
+
+- The browser never holds tokens: the Next.js frontend acts as BFF, keeps them in httpOnly cookies and calls this API with `Authorization: Bearer`. The API stays a stateless bearer resource server without cookies or CSRF handling.
+- Access tokens are JWTs (15 minutes). Refresh tokens are opaque, single use and rotate on every `/auth/refresh`; reusing a rotated token revokes its whole login (token family). Only SHA-256 hashes are stored, with a Cassandra TTL.
+- Auth endpoints are rate limited per client address and login additionally per email. Tomcat resolves the client address from `X-Forwarded-For` only for proxies matching `TRUSTED_PROXIES` (default loopback); set it to the BFF address outside local development.
 
 ## Persistence Conventions
 
@@ -77,5 +85,6 @@ Follow the TDD skill: write the failing test first. Choose the cheapest test tha
 - Assert outcomes (returned values, stored state, HTTP responses), not interactions. Use Mockito `verify` only when the call itself is the observable result, e.g. HTTP requests sent by the importer.
 - Every test owns its data: unique resource names, ids or emails instead of shared magic values. Tests sending more than a few auth requests use their own client address because the rate limiter is shared.
 - Avoid locale-dependent assertions (validation messages are localized).
+- The VS Code Java language server also compiles into `target/`, including classes with compile errors. When Maven unexpectedly compiles nothing or tests fail with "Unresolved compilation problems", delete `target/test-classes` (or `target/classes` while no app runs from it) and rerun.
 - Put tests under the matching feature package in `src/test/java`. Run `mvn test` after changes; it also writes the JaCoCo report to `target/site/jacoco/`. New code should not lower coverage.
 - After changes to runtime behavior, also verify the running app with `scripts/local-app.sh start` and `scripts/smoke-test.sh` (see the local app skill).

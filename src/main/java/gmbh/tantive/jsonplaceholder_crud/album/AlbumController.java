@@ -1,8 +1,11 @@
 package gmbh.tantive.jsonplaceholder_crud.album;
 
+import static gmbh.tantive.jsonplaceholder_crud.api.ResourceController.AFTER_DESCRIPTION;
+
 import java.util.List;
 
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import gmbh.tantive.jsonplaceholder_crud.api.JsonMergePatcher;
@@ -35,8 +38,9 @@ public class AlbumController extends ResourceController<Album, AlbumRequest, Alb
     @Operation(summary = "List albums, optionally filtered by user")
     public List<AlbumResponse> findAll(@RequestParam(required = false) Long userId,
             @RequestParam(name = "_start", defaultValue = "0") int start,
-            @RequestParam(name = "_limit", defaultValue = "100") int limit) {
-        return albumService.findByUserId(userId, new CollectionPage(start, limit)).stream()
+            @RequestParam(name = "_limit", defaultValue = "100") int limit,
+            @Parameter(description = AFTER_DESCRIPTION) @RequestParam(name = "_after", required = false) Long after) {
+        return albumService.findByUserId(userId, new CollectionPage(start, limit, after)).stream()
                 .map(AlbumResponse::from)
                 .toList();
     }
@@ -45,8 +49,9 @@ public class AlbumController extends ResourceController<Album, AlbumRequest, Alb
     @Operation(summary = "List photos for an album")
     public List<PhotoResponse> photos(@PathVariable long id,
             @RequestParam(name = "_start", defaultValue = "0") int start,
-            @RequestParam(name = "_limit", defaultValue = "100") int limit) {
-        return photoService.findByAlbumId(id, new CollectionPage(start, limit)).stream()
+            @RequestParam(name = "_limit", defaultValue = "100") int limit,
+            @Parameter(description = AFTER_DESCRIPTION) @RequestParam(name = "_after", required = false) Long after) {
+        return photoService.findByAlbumId(id, new CollectionPage(start, limit, after)).stream()
                 .map(PhotoResponse::from)
                 .toList();
     }

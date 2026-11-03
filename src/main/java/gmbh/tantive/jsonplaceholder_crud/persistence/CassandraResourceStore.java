@@ -50,6 +50,15 @@ public class CassandraResourceStore implements ResourceStore {
     }
 
     @Override
+    public List<String> findRelatedPayloadsAfterId(Relationship relationship, long parentId, String resource,
+            long afterId, int limit) {
+        return relationRepository.findPageAfterId(relationship.storageName(), parentId, resource, afterId, limit)
+                .stream()
+                .map(ResourceRelationRecord::getPayload)
+                .toList();
+    }
+
+    @Override
     public long findHighestId(String resource) {
         return repository.findLatestByResource(resource).map(record -> record.getKey().getId()).orElse(0L);
     }

@@ -4,6 +4,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
 import org.springframework.security.oauth2.jwt.JwtClaimsSet;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
@@ -20,15 +21,14 @@ public class JwtTokenService {
     private final String issuer;
     private final Duration accessTokenTtl;
 
-    public JwtTokenService(JwtEncoder jwtEncoder,
-            @org.springframework.beans.factory.annotation.Value("${security.jwt.issuer}") String issuer,
-            @org.springframework.beans.factory.annotation.Value("${security.jwt.access-token-ttl:PT15M}") Duration accessTokenTtl) {
+    public JwtTokenService(JwtEncoder jwtEncoder, @Value("${security.jwt.issuer}") String issuer,
+            @Value("${security.jwt.access-token-ttl:PT15M}") Duration accessTokenTtl) {
         this.jwtEncoder = jwtEncoder;
         this.issuer = issuer;
         this.accessTokenTtl = accessTokenTtl;
     }
 
-    public AuthTokenResponse issue(AuthAccount account) {
+    public AccessToken issue(AuthAccount account) {
         Instant now = Instant.now();
         JwtClaimsSet claims = JwtClaimsSet.builder()
                 .issuer(issuer)
@@ -41,6 +41,6 @@ public class JwtTokenService {
                 .build();
         JwsHeader header = JwsHeader.with(MacAlgorithm.HS256).build();
         String token = jwtEncoder.encode(JwtEncoderParameters.from(header, claims)).getTokenValue();
-        return new AuthTokenResponse(token, "Bearer", accessTokenTtl.toSeconds());
+        return new AccessToken(token, accessTokenTtl.toSeconds());
     }
 }

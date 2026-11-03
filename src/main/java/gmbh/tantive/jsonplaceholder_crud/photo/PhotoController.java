@@ -1,8 +1,11 @@
 package gmbh.tantive.jsonplaceholder_crud.photo;
 
+import static gmbh.tantive.jsonplaceholder_crud.api.ResourceController.AFTER_DESCRIPTION;
+
 import java.util.List;
 
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import gmbh.tantive.jsonplaceholder_crud.api.JsonMergePatcher;
@@ -30,8 +33,9 @@ public class PhotoController extends ResourceController<Photo, PhotoRequest, Pho
     @Operation(summary = "List photos, optionally filtered by album")
     public List<PhotoResponse> findAll(@RequestParam(required = false) Long albumId,
             @RequestParam(name = "_start", defaultValue = "0") int start,
-            @RequestParam(name = "_limit", defaultValue = "100") int limit) {
-        return photoService.findByAlbumId(albumId, new CollectionPage(start, limit)).stream()
+            @RequestParam(name = "_limit", defaultValue = "100") int limit,
+            @Parameter(description = AFTER_DESCRIPTION) @RequestParam(name = "_after", required = false) Long after) {
+        return photoService.findByAlbumId(albumId, new CollectionPage(start, limit, after)).stream()
                 .map(PhotoResponse::from)
                 .toList();
     }
