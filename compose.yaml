@@ -8,6 +8,9 @@ services:
       CASSANDRA_CLUSTER_NAME: jsonplaceholder
       CASSANDRA_DC: datacenter1
       CASSANDRA_ENDPOINT_SNITCH: GossipingPropertyFileSnitch
+      # Without explicit values Cassandra sizes its heap from the host RAM; must be set as a pair.
+      MAX_HEAP_SIZE: 1G
+      HEAP_NEWSIZE: 256M
     volumes:
       - cassandra-data:/var/lib/cassandra
     healthcheck:
